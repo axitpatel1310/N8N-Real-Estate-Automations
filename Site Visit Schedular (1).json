@@ -1,0 +1,409 @@
+{
+  "name": "Site Visit Schedular",
+  "nodes": [
+    {
+      "parameters": {
+        "operation": "getAll",
+        "limit": 10,
+        "filters": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        -64,
+        -1264
+      ],
+      "id": "eb0360e2-4018-49aa-86d3-7ae045f9f978",
+      "name": "Get many messages",
+      "webhookId": "37c8280a-a09a-40fb-89ac-27be9bb0405f",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "1Rz4iBTPcO4yGO09",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1P-36jfIDgdPb2V31pNgE5diLkNrVzZF1CtcmjR2MshQ",
+          "mode": "list",
+          "cachedResultName": "Estate Inquiry Replied",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1P-36jfIDgdPb2V31pNgE5diLkNrVzZF1CtcmjR2MshQ/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1P-36jfIDgdPb2V31pNgE5diLkNrVzZF1CtcmjR2MshQ/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -272,
+        -1264
+      ],
+      "id": "a3846a7e-58d3-42dd-b6fa-404e4bc18a6a",
+      "name": "Get row(s) in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "WxMC3yyZMF67yHVc",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "728e3698-0407-48a2-a3f7-9913bbdd3b24",
+              "leftValue": "={{ $('Get row(s) in sheet').item.json.Email }}",
+              "rightValue": "={{ $json.From.match(/<(.+)>/)[1] }}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        128,
+        -1264
+      ],
+      "id": "430621fe-b15a-4791-849a-c6c4fbf8d865",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gemma2:2b",
+          "mode": "list",
+          "cachedResultName": "gemma2:2b"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "={{ $json.snippet }}"
+            }
+          ]
+        },
+        "options": {
+          "system": "You are an information extraction engine.\n\nYour task:\n- Extract the property identifier the user is referring to.\n\nRules:\n- Output ONLY valid JSON\n- NO markdown\n- NO explanations\n- NO extra text\n- If no property can be confidently identified, return null\n\nAllowed output format ONLY:\n\n{\n  \"property_id\": string | null,\n  \"confidence\": number\n}\n\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.ollama",
+      "typeVersion": 1,
+      "position": [
+        352,
+        -1264
+      ],
+      "id": "84057e6d-89cc-487f-8711-761fcc5ceead",
+      "name": "Message a model",
+      "credentials": {
+        "ollamaApi": {
+          "id": "zhhmPml3SEpmtvbH",
+          "name": "Ollama account 2"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -480,
+        -1264
+      ],
+      "id": "ee554cda-df9c-4083-8b8a-d235f3ee9a9c",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "jsCode": "// 1. Get raw Ollama content\nconst raw = $json.content || $json.message || \"\";\n\n// 2. Remove markdown fences\nconst cleaned = raw\n  .replace(/```json/gi, \"\")\n  .replace(/```/g, \"\")\n  .trim();\n\n// 3. Parse JSON safely\nlet parsed;\ntry {\n  parsed = JSON.parse(cleaned);\n} catch (e) {\n  throw new Error(\"Invalid JSON from Ollama\");\n}\n\n// 4. Extract property_id\nreturn [\n  {\n    property_id: parsed.property_id,\n    confidence: parsed.confidence\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        672,
+        -1264
+      ],
+      "id": "cc6f30a9-f928-4848-9766-2d2bcaaa829b",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "d8fa1d1c-a3fd-41bd-9b25-f00eebed404c",
+              "leftValue": "={{ $('Code in JavaScript').item.json.property_id.toString() }}",
+              "rightValue": "={{ $json[\"Property ID\"].toString() }}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -272,
+        -1024
+      ],
+      "id": "e7d20810-2e54-40ee-abe3-f06bfa518b50",
+      "name": "If1"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1xc5I8jm6gpTSlpazWfvCexQiVBiRTx6wi1rhqHjbpNY",
+          "mode": "list",
+          "cachedResultName": "Real Estate Database",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1xc5I8jm6gpTSlpazWfvCexQiVBiRTx6wi1rhqHjbpNY/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1267342551,
+          "mode": "list",
+          "cachedResultName": "Form responses 1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1xc5I8jm6gpTSlpazWfvCexQiVBiRTx6wi1rhqHjbpNY/edit#gid=1267342551"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -480,
+        -1024
+      ],
+      "id": "85955408-8ca8-4b4b-a374-ac5768d00bb2",
+      "name": "Get row(s) in sheet1",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "WxMC3yyZMF67yHVc",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('If').item.json.From.match(/<(.+)>/)[1] }}",
+        "subject": "Regarding Site View",
+        "emailType": "text",
+        "message": "=This is {{ $('Get row(s) in sheet1').item.json[\"Agent Name\"] }} From Estate 1000, we noticed that you showed intereset in a {{ $('Get row(s) in sheet1').item.json.Property }} {{ $('Get row(s) in sheet1').item.json.Property_Category }} property in {{ $('Get row(s) in sheet1').item.json.Location }}.\n\nThe cost is {{ $('Get row(s) in sheet1').item.json.Price }} and it is {{ $('Get row(s) in sheet1').item.json.Status }} currently but not for too long. Make a visit and book the property before someelse does.\n\nWe are avaliable tommorow on time slot {{ $json.Time }} or else feel free to contact us with your suitable hours. \n\nThank you, \n{{ $('Get row(s) in sheet1').item.json[\"Agent Name\"] }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        352,
+        -1024
+      ],
+      "id": "73bcda61-df06-418e-9de9-58257e459d5b",
+      "name": "Send a message",
+      "webhookId": "4aeff5f9-4359-4217-8ece-df753317b1f2",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "1Rz4iBTPcO4yGO09",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const agentName = $json[\"Agent Name\"];\n\nconst sheetName =\n  \"schedule_\" + agentName.toLowerCase().trim();\n\nreturn [{ json: { sheetName } }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -64,
+        -1024
+      ],
+      "id": "ced903ac-c120-46a2-bbb0-d5ae37706586",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1bG2qdcbfQUGGWx1MZaGXcTJ90bxs5FEBSKaWhb_JK9M",
+          "mode": "list",
+          "cachedResultName": "Agents Schedule",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1bG2qdcbfQUGGWx1MZaGXcTJ90bxs5FEBSKaWhb_JK9M/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{ $json.sheetName }}"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        144,
+        -1024
+      ],
+      "id": "db7a9819-768f-4aba-8177-40588456d00b",
+      "name": "Get row(s) in sheet2",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "WxMC3yyZMF67yHVc",
+          "name": "Google Sheets account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Get row(s) in sheet": {
+      "main": [
+        [
+          {
+            "node": "Get many messages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get many messages": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet1": {
+      "main": [
+        [
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If1": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet2": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "67e1953a-5b07-436c-baf9-e09901c83869",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "78e63da62dc2c179f68c9f6693c681971ceb742a121fcc264d591138a8f86c64"
+  },
+  "id": "wSFs8gLUbNVajGDd",
+  "tags": []
+}
